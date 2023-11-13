@@ -46,5 +46,14 @@ class MySpider(scrapy.Spider):
         yield item.dict()
 ```
 
+### HTML Cleaning Options
+Generally you don't want to send all HTML element attributes to the LLM. If the data you need is only inside the inner HTML of the elements, you can call `load_item` function as following:
+
+```python
+from scrapy_llm_loader.utils import CleaningMode
+
+item = loader.load_item(cleaning_mode=CleaningMode.TEXT_ONLY)
+```
+
 
 
