@@ -5,7 +5,7 @@ from langchain.callbacks import get_openai_callback
 from langchain.pydantic_v1 import BaseModel
 from scrapy.statscollectors import StatsCollector
 
-from .utils import clean_html, CleaningMode
+from .utils import clean_html
 import json
 
 
@@ -13,7 +13,7 @@ total_tokens = 0
 num_items = 0
 
 
-def extract_from_html(html_content: str, item: BaseModel, openai_api_key: str, stats_collector: StatsCollector, cleaning_mode: CleaningMode):
+def extract_from_html(html_content: str, item: BaseModel, openai_api_key: str, stats_collector: StatsCollector):
   global total_tokens, num_items
 
   model = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0, openai_api_key=openai_api_key)
@@ -34,7 +34,7 @@ def extract_from_html(html_content: str, item: BaseModel, openai_api_key: str, s
       partial_variables={"format_instructions": parser.get_format_instructions()},
   )
 
-  _input = prompt.format_prompt(query=clean_html(html_content, cleaning_mode))
+  _input = prompt.format_prompt(query=clean_html(html_content))
 
   with get_openai_callback() as cb:
     output = (model.invoke(_input.to_string()))
