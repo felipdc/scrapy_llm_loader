@@ -1,52 +1,34 @@
-from langchain.chat_models import ChatOpenAI
-from langchain.output_parsers import PydanticOutputParser
-from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
-from langchain.callbacks import get_openai_callback
-from langchain.pydantic_v1 import BaseModel
 from scrapy.statscollectors import StatsCollector
-
-from .utils import clean_html, CleaningMode
 import json
 
+from .langchain_api import create_langchain_model, invoke_langchain_api
+from .prompt import create_prompt
+from .output_parser import create_item_parser
+from .utils import CleaningMode
 
 total_tokens = 0
-num_items = 0
 
 
-def extract_from_html(html_content: str, item: BaseModel, openai_api_key: str, stats_collector: StatsCollector, cleaning_mode: CleaningMode):
-  global total_tokens, num_items
+def extract_from_html(
+    html_content: str,
+    item_class,
+    openai_api_key: str,
+    stats_collector: StatsCollector,
+    cleaning_mode: CleaningMode,
+):
+    global total_tokens
 
-  model = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0, openai_api_key=openai_api_key)
-  parser = PydanticOutputParser(pydantic_object=item)
-  
-  template = "You generate the output based on the HTML provided.\n{format_instructions}\n"
-  system_message_prompt = SystemMessagePromptTemplate.from_template(template)
-  
-  human_template="{query}"
-  human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
+    model = create_langchain_model(openai_api_key)
+    item_parser = create_item_parser(item_class)
+    prompt = create_prompt(item_parser, html_content, cleaning_mode)
 
-  prompt = ChatPromptTemplate(
-      input_variables=["query"],
-      messages=[
-        system_message_prompt,
-        human_message_prompt,
-      ],
-      partial_variables={"format_instructions": parser.get_format_instructions()},
-  )
+    output, tokens = invoke_langchain_api(model, prompt)
+    total_tokens += tokens
 
-  _input = prompt.format_prompt(query=clean_html(html_content, cleaning_mode))
+    update_scrapy_stats(stats_collector, total_tokens)
 
-  with get_openai_callback() as cb:
-    output = (model.invoke(_input.to_string()))
-    total_tokens += cb.total_tokens
+    return json.loads(output.content)
 
-  update_scrapy_stats(stats_collector, total_tokens)
-
-  return json.loads(output.content)
-
-def get_total_tokens():
-    return total_tokens
 
 def update_scrapy_stats(stats_collector: StatsCollector, token_count: int):
-    current_count = stats_collector.get_value('total_tokens', 0)
-    stats_collector.set_value('total_tokens', current_count + token_count)
+    stats_collector.set_value("total_tokens", token_count)
