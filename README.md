@@ -16,6 +16,10 @@
 pip install scrapy_llm_loader
 ```
 
+
+## Note
+Before using `scrapy_llm_loader`, ensure that the `OPENAI_API_KEY` is set in your project's `settings.py` or passed explicitly as an argument with `openai_api_key` during the loader's initialization.
+
 ## Usage
 To use `scrapy_llm_loader` in your Scrapy project:
 1. Import `LangChainLoader` from `scrapy_llm_loader.loader`.
